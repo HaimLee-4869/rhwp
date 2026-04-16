@@ -101,6 +101,23 @@ export class WasmBridge {
     return this.doc.exportHwp();
   }
 
+  // 동시편집용 이벤트 API
+  beginBatch(): void {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    this.doc.beginBatch();
+  }
+
+  endBatch(): string {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    return this.doc.endBatch();
+  }
+
+  getEventLog(): string {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    return this.doc.getEventLog();
+  }
+
+
   get pageCount(): number {
     return this.doc?.pageCount() ?? 0;
   }
