@@ -562,6 +562,72 @@ window.addEventListener('message', async (e) => {
       case 'ready':
         reply(true);
         break;
+        
+      //동시편집용 이벤트 API
+      case 'beginBatch':
+        wasm.beginBatch();
+        reply(true);
+        break;
+
+      case 'endBatch':
+        reply(wasm.endBatch());
+        break;
+
+      case 'getEventLog':
+        reply(wasm.getEventLog());
+        break;
+
+      //원격 이벤트 재적용 (다른 사용자의 편집을 반영)
+      case 'insertText':
+        reply(wasm.insertText(
+          params.sec,
+          params.para,
+          params.charOffset,
+          params.text
+        ));
+        break;
+
+      case 'deleteText':
+        reply(wasm.deleteText(
+          params.sec,
+          params.para,
+          params.charOffset,
+          params.count
+        ));
+        break;
+      
+      case 'splitParagraph':
+        reply(wasm.splitParagraph(
+          params.sec,
+          params.para,
+          params.charOffset
+        ));
+        break;
+
+      case 'mergeParagraph':
+        reply(wasm.mergeParagraph(
+          params.sec,
+          params.para
+        ));
+        break;
+
+      //파일 내보내기
+      case 'exportHwp': {
+        const bytes = wasm.exportHwp();
+        // postMessage로 Uint8Array 전송 시 Array로 변환
+        reply({ data: Array.from(bytes), byteLength: bytes.byteLength });
+        break;
+      }
+
+      //문서 메타정보
+      case 'getDocumentInfo':
+        reply({
+          pageCount: wasm.pageCount,
+          fileName: wasm.fileName,
+          isNewDocument: wasm.isNewDocument
+        });
+        break;
+      
       default:
         reply(undefined, `Unknown method: ${method}`);
     }
