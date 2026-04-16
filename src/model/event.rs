@@ -7,8 +7,8 @@
 #[derive(Debug, Clone)]
 pub enum DocumentEvent {
     // ── 텍스트 편집 ──
-    TextInserted { section: usize, para: usize, offset: usize, len: usize },
-    TextDeleted { section: usize, para: usize, offset: usize, count: usize },
+    TextInserted { section: usize, para: usize, offset: usize, len: usize, text: String },
+    TextDeleted { section: usize, para: usize, offset: usize, count: usize, text: String },
     ParagraphSplit { section: usize, para: usize, offset: usize },
     ParagraphMerged { section: usize, para: usize },
 
@@ -41,10 +41,10 @@ impl DocumentEvent {
     pub fn to_json(&self) -> String {
         match self {
             // 텍스트 편집
-            DocumentEvent::TextInserted { section, para, offset, len } =>
-                format!(r#"{{"type":"TextInserted","section":{},"para":{},"offset":{},"len":{}}}"#, section, para, offset, len),
-            DocumentEvent::TextDeleted { section, para, offset, count } =>
-                format!(r#"{{"type":"TextDeleted","section":{},"para":{},"offset":{},"count":{}}}"#, section, para, offset, count),
+            DocumentEvent::TextInserted { section, para, offset, len, text } =>
+                format!(r#"{{"type":"TextInserted","section":{},"para":{},"offset":{},"len":{},"text":{}}}"#, section, para, offset, len, json_escape_string(text)),
+            DocumentEvent::TextDeleted { section, para, offset, count, text } =>
+                format!(r#"{{"type":"TextDeleted","section":{},"para":{},"offset":{},"count":{},"text":{}}}"#, section, para, offset, count, json_escape_string(text)),
             DocumentEvent::ParagraphSplit { section, para, offset } =>
                 format!(r#"{{"type":"ParagraphSplit","section":{},"para":{},"offset":{}}}"#, section, para, offset),
             DocumentEvent::ParagraphMerged { section, para } =>
@@ -100,13 +100,34 @@ pub fn serialize_event_log(events: &[DocumentEvent]) -> String {
     format!(r#"{{"ok":true,"events":[{}]}}"#, items.join(","))
 }
 
+/// JSON 문자열 리터럴로 안전하게 인코딩한다. 예: "안녕"α → "\"안녕\""
+fn json_escape_string(s: &str) -> String {
+    let mut result = String::with_capacity(s.len() + 2);
+    result.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => result.push_str("\\\""),
+            '\\' => result.push_str("\\\\"),
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                result.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => result.push(c),
+        }
+    }
+    result.push('"');
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_text_inserted_to_json() {
-        let event = DocumentEvent::TextInserted { section: 0, para: 1, offset: 5, len: 3 };
+        let event = DocumentEvent::TextInserted { section: 0, para: 1, offset: 5, len: 3, text: "abc".to_string() };
         let json = event.to_json();
         assert!(json.contains(r#""type":"TextInserted""#));
         assert!(json.contains(r#""section":0"#));
@@ -124,8 +145,8 @@ mod tests {
     #[test]
     fn test_serialize_event_log_multiple() {
         let events = vec![
-            DocumentEvent::TextInserted { section: 0, para: 0, offset: 0, len: 5 },
-            DocumentEvent::TextDeleted { section: 0, para: 0, offset: 3, count: 2 },
+            DocumentEvent::TextInserted { section: 0, para: 0, offset: 0, len: 5, text: "hello".to_string() },
+            DocumentEvent::TextDeleted { section: 0, para: 0, offset: 3, count: 2, text: "lo".to_string() },
         ];
         let result = serialize_event_log(&events);
         assert!(result.contains(r#""events":["#));

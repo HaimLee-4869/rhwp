@@ -95,7 +95,13 @@ impl DocumentCore {
             );
         }
 
-        self.event_log.push(DocumentEvent::TextInserted { section: section_idx, para: para_idx, offset: char_offset, len: new_chars_count });
+        self.event_log.push(DocumentEvent::TextInserted{
+            section: section_idx,
+            para: para_idx,
+            offset: char_offset,
+            len: new_chars_count,
+            text: text.to_string(),
+        });
         Ok(super::super::helpers::json_ok_with(&format!("\"charOffset\":{}", new_offset)))
     }
 
@@ -119,6 +125,11 @@ impl DocumentCore {
                 "문단 인덱스 {} 범위 초과 (총 {}개)", para_idx, section.paragraphs.len()
             )));
         }
+
+        let deleted_text: String = {
+            let para = &self.document.sections[section_idx].paragraphs[para_idx];
+            para.text.chars().skip(char_offset).take(count).collect()
+        };
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
         self.document.sections[section_idx].raw_stream = None;
@@ -178,7 +189,13 @@ impl DocumentCore {
             );
         }
 
-        self.event_log.push(DocumentEvent::TextDeleted { section: section_idx, para: para_idx, offset: char_offset, count });
+        self.event_log.push(DocumentEvent::TextDeleted {
+            section: section_idx,
+            para: para_idx,
+            offset: char_offset,
+            count,
+            text: deleted_text,
+        });
         Ok(super::super::helpers::json_ok_with(&format!("\"charOffset\":{}", char_offset)))
     }
 
@@ -608,7 +625,13 @@ impl DocumentCore {
             self.document.doc_properties.caret_list_id = section_idx as u32;
             self.document.doc_properties.caret_para_id = start_para as u32;
 
-            self.event_log.push(DocumentEvent::TextDeleted { section: section_idx, para: start_para, offset: start_offset, count: 0 });
+            self.event_log.push(DocumentEvent::TextDeleted {
+                section: section_idx,
+                para: start_para,
+                offset: start_offset,
+                count: 0,
+                text: String::new(),
+            });
             Ok(super::super::helpers::json_ok_with(&format!("\"paraIdx\":{},\"charOffset\":{}", start_para, start_offset)))
         }
     }

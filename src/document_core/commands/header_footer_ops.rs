@@ -254,6 +254,7 @@ impl DocumentCore {
         let new_offset = char_offset + new_chars_count;
         self.event_log.push(DocumentEvent::TextInserted {
             section: section_idx, para: 0, offset: char_offset, len: new_chars_count,
+            text: text.to_string(),
         });
         Ok(super::super::helpers::json_ok_with(&format!("\"charOffset\":{}", new_offset)))
     }
@@ -287,6 +288,7 @@ impl DocumentCore {
 
         self.event_log.push(DocumentEvent::TextDeleted {
             section: section_idx, para: 0, offset: char_offset, count,
+            text: String::new(),
         });
         Ok(super::super::helpers::json_ok_with(&format!("\"charOffset\":{}", char_offset)))
     }
@@ -778,6 +780,7 @@ impl DocumentCore {
         let new_offset = char_offset + 1;
         self.event_log.push(DocumentEvent::TextInserted {
             section: section_idx, para: 0, offset: char_offset, len: 1,
+            text: String::new(),
         });
         Ok(super::super::helpers::json_ok_with(&format!("\"charOffset\":{}", new_offset)))
     }
