@@ -23,6 +23,8 @@ import { CellSelectionRenderer } from '@/engine/cell-selection-renderer';
 import { TableObjectRenderer } from '@/engine/table-object-renderer';
 import { TableResizeRenderer } from '@/engine/table-resize-renderer';
 import { Ruler } from '@/view/ruler';
+import { InsertTextCommand, DeleteTextCommand } from '@/engine/command';
+
 
 const wasm = new WasmBridge();
 const eventBus = new EventBus();
@@ -578,23 +580,42 @@ window.addEventListener('message', async (e) => {
         break;
 
       //원격 이벤트 재적용 (다른 사용자의 편집을 반영)
-      case 'insertText':
-        reply(wasm.insertText(
-          params.sec,
-          params.para,
-          params.charOffset,
-          params.text
-        ));
-        break;
+      case 'insertText': {
+        if (!inputHandler) {
+          reply(undefined, 'inputHandler not ready');
+          break;
+        }
 
-      case 'deleteText':
-        reply(wasm.deleteText(
-          params.sec,
-          params.para,
-          params.charOffset,
-          params.count
-        ));
+        const pos = {
+          sectionIndex: params.sec,
+          paragraphIndex: params.para,
+          charOffset: params.charOffset,
+        };
+        inputHandler.executeOperation({
+          kind: 'command',
+          command: new InsertTextCommand(pos, params.text),
+        });
+        reply(true);
         break;
+      }
+
+      case 'deleteText': {
+        if (!inputHandler) {
+          reply(undefined, 'inputHandler not ready');
+          break;
+        }
+        const pos = {
+          sectionIndex: params.sec,
+          paragraphIndex: params.para,
+          charOffset: params.charOffset,
+        };
+        inputHandler.executeOperation({
+          kind: 'command',
+          command: new DeleteTextCommand(pos, params.count, 'forward', params.text || ''),
+        });
+        reply(true);
+        break;
+      }
       
       case 'splitParagraph':
         reply(wasm.splitParagraph(
