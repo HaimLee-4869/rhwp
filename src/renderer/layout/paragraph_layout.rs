@@ -3012,6 +3012,9 @@ pub(crate) fn map_pua_bullet_char(ch: char) -> char {
             // 한컴 PDF (HCRBatang 임베디드 폰트) 글리프 외곽 분석:
             //   stem 35% × arrowhead 100% × solid filled (1 contour, 7 pts) → ↓
             0xF003B => '\u{2193}', // ↓ DOWNWARDS ARROW
+            // 캡스톤 A-4: 본 파일에서 U+F007E 가 29회 박스 머리 글머리표로 사용.
+            // ■ 매핑 잠정 (시각 검증 후 정정).
+            0xF007E => '\u{25A0}', // ■ Black square
             _ => ch,
         };
     }
@@ -3043,6 +3046,8 @@ pub(crate) fn map_pua_bullet_char(ch: char) -> char {
             // KTX 회귀 origin — 한컴 PDF 시각 = · (Middle dot), ★ 아님
             // (작업지시자 정정 — 이전 ★ U+2605 매핑은 잘못)
             0xF02EF => '\u{00B7}', // · Middle dot
+            // 한컴 글머리표 (캡스톤 A-5) — U+F02FB 글머리표로 사용. ▶ 매핑 잠정.
+            0xF02FB => '\u{25B6}', // ▶ Black right-pointing triangle
             _ => ch,
         };
     }
@@ -3056,6 +3061,8 @@ pub(crate) fn map_pua_bullet_char(ch: char) -> char {
             0xF0855 => '\u{300B}', // 》 RIGHT DOUBLE ANGLE BRACKET
             // 예시 마커 — `(F00DA 단풍 철 : 철 성분)` 패턴 — 한컴 PDF 시각 검증 필요
             0xF00DA => '\u{25B8}', // ▸ BLACK SMALL TRIANGLE (잠정, 시각 판정 후 정정)
+            // 한컴 글머리표 (캡스톤) — U+F080C 글머리표로 사용. ■ 매핑 잠정.
+            0xF080C => '\u{25A0}', // ■ Black square
             _ => ch,
         };
     }
