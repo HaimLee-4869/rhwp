@@ -3046,8 +3046,8 @@ pub(crate) fn map_pua_bullet_char(ch: char) -> char {
             // KTX 회귀 origin — 한컴 PDF 시각 = · (Middle dot), ★ 아님
             // (작업지시자 정정 — 이전 ★ U+2605 매핑은 잘못)
             0xF02EF => '\u{00B7}', // · Middle dot
-            // 한컴 글머리표 (캡스톤 A-5) — U+F02FB 글머리표로 사용. ▶ 매핑 잠정.
-            0xF02FB => '\u{25B6}', // ▶ Black right-pointing triangle
+            // 한컴 글머리표 — U+F02FB 본문 박스 마커. 한컴 시각 = 작은 삼각형 ▸.
+            0xF02FB => '\u{25B8}', // ▸ Black small right-pointing triangle
             _ => ch,
         };
     }
