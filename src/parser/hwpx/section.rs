@@ -213,6 +213,7 @@ fn parse_paragraph(
                         sec_def = Some(sd);
                         // colPr이 있으면 ColumnDef 컨트롤 추가 (초기 단 정의)
                         if let Some(cd) = col_def_opt {
+                            text_parts.push("\u{0002}".to_string());
                             para.controls.push(Control::ColumnDef(cd));
                         }
                     }
@@ -1951,6 +1952,7 @@ fn parse_ctrl(
                 match local {
                     b"colPr" => {
                         let cd = parse_col_pr(ce);
+                        text_parts.push("\u{0002}".to_string());
                         controls.push(Control::ColumnDef(cd));
                         skip_element(reader, b"colPr")?;
                     }
@@ -1999,6 +2001,7 @@ fn parse_ctrl(
                     }
                     b"pageNum" => {
                         let pn = parse_page_num_attrs(ce);
+                        text_parts.push("\u{0002}".to_string());
                         controls.push(Control::PageNumberPos(pn));
                         skip_element(reader, b"pageNum")?;
                     }
@@ -2023,6 +2026,7 @@ fn parse_ctrl(
                 match local {
                     b"colPr" => {
                         let cd = parse_col_pr(ce);
+                        text_parts.push("\u{0002}".to_string());
                         controls.push(Control::ColumnDef(cd));
                     }
                     b"pageHiding" => {
@@ -2031,6 +2035,7 @@ fn parse_ctrl(
                     }
                     b"pageNum" => {
                         let pn = parse_page_num_attrs(ce);
+                        text_parts.push("\u{0002}".to_string());
                         controls.push(Control::PageNumberPos(pn));
                     }
                     b"bookmark" => {
