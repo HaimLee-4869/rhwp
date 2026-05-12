@@ -418,6 +418,14 @@ fn parse_char_shape(
                                         };
                                     }
                                     b"color" => cs.shadow_color = parse_color(&attr),
+                                    b"offsetX" => {
+                                        let v: i32 = attr_str(&attr).parse().unwrap_or(0);
+                                        cs.shadow_offset_x = v.clamp(-100, 100) as i8;
+                                    }
+                                    b"offsetY" => {
+                                        let v: i32 = attr_str(&attr).parse().unwrap_or(0);
+                                        cs.shadow_offset_y = v.clamp(-100, 100) as i8;
+                                    }
                                     _ => {}
                                 }
                             }
