@@ -1794,11 +1794,20 @@ impl TypesetEngine {
             0.0
         };
 
-        // 표 배치
-        st.current_items.push(PageItem::Table {
-            para_index: para_idx,
-            control_index: ctrl_idx,
-        });
+        // 인라인 TAC 표은 layout_inline_table_paragraph 가 paragraph 안에서 cell 을 그림.
+        // 여기서 별도 PageItem 등록 시 layout_table_item 이 동일 cell 을 또 그려 중복 렌더된다.
+        let is_inline_tac = table.common.treat_as_char && {
+            let seg_width = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
+            crate::renderer::height_measurer::is_tac_table_inline(
+                table, seg_width, &para.text, &para.controls,
+            )
+        };
+        if !is_inline_tac {
+            st.current_items.push(PageItem::Table {
+                para_index: para_idx,
+                control_index: ctrl_idx,
+            });
+        }
 
         // [Task #439] 누적 정책:
         // - Square wrap (어울림): max(pre_height, v_off + table_total)
