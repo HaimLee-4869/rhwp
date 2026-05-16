@@ -75,6 +75,29 @@ wasm-pack build --target web --dev
 
 ---
 
+## 권한 정책 (세션 자동 적용)
+
+사용자 강력 정책 (2026-05-16 갱신). 다음 명령은 매번 묻지 말고 자동 실행한다:
+
+**자동 실행 (확인 불요)**:
+- 셸 진단: `grep`, `cat`, `ls`, `find`, `wc`, `head`, `tail`, `sort`, `uniq`, `python3`, `unzip`
+- Rust 빌드/검증: `cargo check`, `cargo test --lib <module>` (전체 `cargo test` 는 금지 유지), `wasm-pack build --target web --dev`
+- rhwp CLI: `rhwp dump`, `rhwp dump-pages`, `rhwp export-svg`, `rhwp ir-diff`, `rhwp info`, `rhwp diag`
+- Git 읽기: `git diff`, `git status`, `git log`, `git show`, `git blame`
+- 파일 읽기 (Read tool), 디렉토리 탐색
+- 파일 수정 (Edit/Write tool): `rhwp/src/renderer/`, `rhwp/src/parser/`, `rhwp/src/model/`, `CAPSTONE-WORKFLOW.md`, `mydocs/orders/` 영역 한정
+
+**위험 명령 (매번 확인)**:
+- 파일 삭제/이동: `rm`, `mv` (다른 디렉토리로)
+- 권한 상승: `sudo`
+- Git 쓰기: `git commit`, `git push`, `git reset --hard`, `git checkout` (다른 브랜치)
+- 빌드 (장시간): `wasm-pack build --target web --release` (10-20분), `cargo build --release` (재빌드 시)
+- 의존성 변경: `cargo add`, `cargo remove`, `npm install`
+- 외부 네트워크: `curl`, `wget` (github / cargo 패키지 fetch 제외)
+- 환경 영향: `chmod`, `chown`, `kill`, `pkill`, 시스템 서비스 명령
+
+---
+
 ## 절대 금지 (사용자 명시 승인 없이)
 
 - `git commit` — 사용자가 검토 후 명시적으로 요청해야 함
@@ -145,7 +168,7 @@ wasm-pack build --target web --dev
 - **A-1**: 표 장식 바(파란색 선) 미표시
 - **A-2**: 업무협약서 이미지 완전 누락
 - **A-3**: 꺾쇠 괄호 누락 (raw `&lt;` `&gt;` 디코딩 후 ASCII < > — char-by-char SVG 위치 매칭 필요)
-- **A-4**: 색칠 네모 + 화살표 기호 깨짐 (HWPX U+F007E ✅ 매핑 완료, 디테일 화살표 별도 작업)
+- **A-4 ✅**: U+F007E "사각 외곽 + 안 화살표" 합성 글리프 — raw PUA passthrough + `generic_fallback()` 함초롬 한국어 family name fallback chain. 1차 ■ 매핑 / 2차 ➡ 매핑 모두 NG, 3차 raw passthrough + 폰트 fallback 정공법 OK — **완료 5/16**
 - **A-5**: ▶ 삼각형 기호 미표시 (잠정 매핑 완료 후 F-2 에서 정정)
 - **A-6**: 목차 그림자 효과 미적용
 - **A-7 ✅**: 표지 타이틀 글자 drop shadow 미렌더링 (HWPX `<hh:shadow>` offsetX/Y 파싱 누락) — **완료 5/12**
@@ -158,7 +181,7 @@ wasm-pack build --target web --dev
 - **B-5 ✅**: HWPX paragraph 의 비-인라인 control sentinel push 누락 — 표지 인라인 라벨 위치 — **완료 5/12**
 
 ### C. 글꼴
-- **C-1**: 숫자에 HCI Poppy 폰트 자동 적용 (한글/숫자 폰트 분리 미처리). 본 캡스톤 두 파일 모두 한컴은 숫자도 한글 본문 폰트 사용. rhwp 의 자동 적용 분리 영역.
+- **C-1**: rhwp 가 숫자에 HCI Poppy 를 자동 분리 적용하는 버그. 한글 2024 에서는 숫자가 본문 폰트 (휴먼명조 등) 로 통일되는데, rhwp 는 숫자만 HCI Poppy 로 잘못 적용해 시각이 어긋남. fix 방향: rhwp 의 숫자 폰트 자동 분리 로직 제거 또는 비활성화.
 
 ### D. 변환/회전
 - **D-1**: 가로 회전 페이지 세로 표시
@@ -168,16 +191,18 @@ wasm-pack build --target web --dev
 - **E-1 ✅**: 인라인 TAC Table 두 번 렌더링 (paragraph_layout + 별도 PageItem::Table entry) — `typeset.rs:1797-1808` 가드 — **완료 5/13**
 
 ### F. HWP 파일 발견
-- **F-1**: 한컴 자체 폰트 PUA 글리프 (U+F02B1~F02C4 사각 안 숫자 등) — 한컴 폰트 영역, 주무관님 요청 영역
+- **F-1 ✅**: U+F02B1~F02C4 사각 안 숫자 한컴 자체 PUA 글리프 — 기존 표준 ①~⑳ 매핑 (Task #509) 은 fallback chain 효과 못 받음 (1순위 폰트가 표준 ① 글리프로 즉시 렌더링). 매핑 entry 제거 → raw PUA passthrough + A-4 fallback chain 재활용. PowerShell 디코딩으로 codepoint 확정 — **완료 5/16**
 - **F-2 / F-7 ✅**: U+F02FB 본문 박스 마커 ▶ → ▸ (Black small right-pointing triangle) 매핑 정정 — **완료 5/13**
 - **F-3**: 「참고2」 헤더 페이지 위치 — B-1 영역
 - **F-4**: 목차 페이지 숫자 정렬 (tab + leader char 우측 정렬) — 추가 진단 필요, isolated 가능성
-- **F-5**: U+F007E 가 첫 미션 파일 (HWPX) 은 ■, 공직기강 (HWP) 은 ▣ — 같은 PUA 두 파일 다른 한컴 글리프, 매핑 충돌
-- **F-6**: ◊ U+25CA 표준 char 의 한컴 폰트 ◇ 글리프 — 폰트 영역
-- **F-8**: 폰트 메트릭 미세 차이
+- **F-5 ✅**: U+F007E 두 파일 글리프 충돌 가설 — 실은 매핑 오류 환상. 두 파일 동일 글리프, A-4 fix 로 자연 해소 — **완료 5/16**
+- **F-6**: ◊ U+25CA — **rhwp 메트릭 영역 (본가 영역)**. 한글 2024 안에서도 같은 모양, rhwp 에서만 길쭉. 폰트 매핑 영역 아닌 SVG 메트릭 처리 영역. 캡스톤 마감 내 fix 어려움 — **보류**
+- **F-8**: 폰트 메트릭 미세 차이 — F-6 와 동질, 메트릭 영역 (본가 영역) — **보류**
 
-**5/12-13 완료 (5건)**: A-7, B-5, A-4, E-1, F-2/F-7
-**다음 세션 우선순위**: F-4 (목차 정렬, isolated 가능성) → B-1 정면 돌파 (5/18-21) → 주무관님 답변 후 폰트 영역
+**5/12-13 완료 (5건)**: A-7, B-5, A-4 (1차 매핑), E-1, F-2/F-7
+**5/16 완료 (3건)**: A-4 (3차 fallback chain 정공법), F-1, F-5 (자연 해소)
+**5/16 보류 분류**: F-6, F-8 — 메트릭 영역, 본가 영역으로 분류
+**다음 세션 우선순위**: F-4 (목차 정렬, isolated 가능성) → B-1 정면 돌파 (5/17-21) → 주무관님 답변 후 폰트 영역
 
 ---
 
@@ -206,3 +231,23 @@ wasm-pack build --target web --dev
 3. 관련 테스트 통과 (있는 경우)
 4. **다른 페이지에 회귀가 보이지 않음** (사용자가 SVG로 빠르게 훑어서 확인)
 5. 사용자 명시적 OK
+
+---
+
+## 권한 정책 (모든 세션 적용)
+
+다음 read-only 진단 명령은 매번 묻지 않고 자동 실행:
+- grep, cat, ls, find, head, tail, wc
+- python3 -c (read-only XML/JSON 분석)
+- cargo check, cargo test
+- ./target/release/rhwp dump, dump-pages, ir-diff, export-svg (출력만)
+- git diff, git status, git log, git branch
+- file, stat, du -sh
+- unzip -p (read-only)
+
+위험 명령은 매번 확인:
+- rm, mv (파일 삭제/이동)
+- sudo
+- git push, git reset --hard, git checkout
+- 외부 네트워크 (curl, wget — github/cargo 제외)
+- chmod +x, chown
