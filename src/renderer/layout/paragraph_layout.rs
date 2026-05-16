@@ -3012,9 +3012,13 @@ pub(crate) fn map_pua_bullet_char(ch: char) -> char {
             // 한컴 PDF (HCRBatang 임베디드 폰트) 글리프 외곽 분석:
             //   stem 35% × arrowhead 100% × solid filled (1 contour, 7 pts) → ↓
             0xF003B => '\u{2193}', // ↓ DOWNWARDS ARROW
-            // 캡스톤 A-4: 본 파일에서 U+F007E 가 29회 박스 머리 글머리표로 사용.
-            // ■ 매핑 잠정 (시각 검증 후 정정).
-            0xF007E => '\u{25A0}', // ■ Black square
+            // 캡스톤 A-4 (2026-05-16): 한컴 자체 PUA — "검정 외곽 박스 + 안 우측 화살표"
+            // 합성 글리프. 시각 검증 결과 ■ (U+25A0) 도 ➡ (U+27A1) 도 NG — 단일 Unicode
+            // 매핑으로 합성 글리프 표현 불가 (폰트 임베딩 영역, F-1/F-6 와 동질 본질).
+            // 추측 매핑 추가 금지 (CAPSTONE-WORKFLOW.md 폰트 정책) → raw PUA passthrough.
+            // 시스템 한컴 폰트 (HY견고딕 등) 가 정확한 글리프 렌더링. 두 대상 파일
+            // (HWPX 스마트행정팀, HWP 공직기강) 동일 글리프 — F-5 자연 해소.
+            0xF007E => ch,
             _ => ch,
         };
     }
