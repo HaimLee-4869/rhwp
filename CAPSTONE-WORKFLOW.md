@@ -53,18 +53,23 @@ CRDT/협업 코드는 본가 rhwp 레포에 **존재하지 않으며**, 별도 �
 ## 검증 절차 (각 수정 후 필수, 이 순서대로)
 
 ```bash
-# 1. 빠른 컴파일 체크 (10-30초)
+# 1. 빠른 컴파일 체크 (10-30초) — native + WASM 두 타겟
 cd /home/sprint/eunjung-rhwp-collab/rhwp
 cargo check --lib
+cargo check --target wasm32-unknown-unknown --lib
 
 # 2. 관련 테스트만 (예: shadow 관련)
 cargo test renderer::shadow  # ★ 전체 cargo test는 금지 (시간 길어)
 
-# 3. WASM --dev 빌드 (매 수정마다, 5분 이내 예상)
+# 3. SVG 좌표 검증 (native CLI path — EmbeddedTextMeasurer)
+./target/release/rhwp export-svg <파일> -p <페이지>
+# python3 으로 좌표 분석
+
+# 4. WASM --dev 빌드 (매 수정마다, 5분 이내 예상)
 wasm-pack build --target web --dev
 
-# 4. 여기서 멈추고 사용자에게 브라우저 시각 검증 요청.
-#    사용자: rhwp-studio 새로고침 → 한글 2024 캡쳐와 비교 → OK / NG 보고.
+# 5. 여기서 멈추고 사용자에게 브라우저 시각 검증 요청.
+#    사용자: rhwp-studio Ctrl+Shift+R → 한글 2024 캡쳐와 비교 → OK / NG 보고.
 #    사용자가 OK 할 때까지 다음 단계 진행 금지.
 
 # 마일스톤마다만 (--release, 10-20분 소요):
@@ -72,6 +77,21 @@ wasm-pack build --target web --dev
 ```
 
 > 시각 검증은 사용자가 직접 한글 2024 / rhwp-studio 동일 페이지 캡쳐를 비교하여 수행한다. 자동 SVG 비교 도구는 사용하지 않는다.
+
+> **★ 결정적 학습 (5/17)**: SVG 좌표 검증 (3단계) 만으로는 Canvas 시각 정합 보증 X. 반드시 5단계 (사용자 rhwp-studio 시각 검증) 까지 완료해야 OK 판정.
+
+## ★ Native vs WASM 두 path 정책 (5/17 영구화)
+
+rhwp 의 텍스트 측정/배치 코드는 두 구현이 병존한다:
+
+| Path | 사용처 | 구현 | char_width 함수 |
+|---|---|---|---|
+| Native | `rhwp export-svg` CLI, native test | `EmbeddedTextMeasurer` (`text_measurement.rs:319-476`) | `measure_char_width_embedded` (Rust 임베디드 메트릭) |
+| WASM | rhwp-studio Canvas (브라우저) | `WasmTextMeasurer` (`text_measurement.rs:759-903`) | `js_measure_text_width` (브라우저 JS measureText 브리지) |
+
+**규칙**: 두 path 의 `compute_char_positions` / `\t` 처리 / char_width 영역 수정 시 **반드시 양쪽 동시 수정**.
+
+위반 시 결과: 네이티브 CLI (SVG export) 검증은 OK 통과, 그러나 rhwp-studio Canvas 시각은 NG. 5/17 F-4 1차 fix 가 정확히 이 패턴으로 NG → 2차 fix 에 WASM 추가 적용으로 OK.
 
 ---
 
@@ -194,7 +214,7 @@ wasm-pack build --target web --dev
 - **F-1 ✅**: U+F02B1~F02C4 사각 안 숫자 한컴 자체 PUA 글리프 — 기존 표준 ①~⑳ 매핑 (Task #509) 은 fallback chain 효과 못 받음 (1순위 폰트가 표준 ① 글리프로 즉시 렌더링). 매핑 entry 제거 → raw PUA passthrough + A-4 fallback chain 재활용. PowerShell 디코딩으로 codepoint 확정 — **완료 5/16**
 - **F-2 / F-7 ✅**: U+F02FB 본문 박스 마커 ▶ → ▸ (Black small right-pointing triangle) 매핑 정정 — **완료 5/13**
 - **F-3**: 「참고2」 헤더 페이지 위치 — B-1 영역
-- **F-4**: 목차 페이지 숫자 정렬 (tab + leader char 우측 정렬) — 추가 진단 필요, isolated 가능성
+- **F-4 ✅**: 목차 페이지 숫자 정렬 — 단일-run \t 케이스 의 `body_right = available_width - line_x_offset` 가 effective_margin_left 미포함 + seg_w 의 leading space 미포함 → cell right inner 미달. **결정적 학습**: rhwp 에 `EmbeddedTextMeasurer` (native) 와 `WasmTextMeasurer` (WASM) 두 `compute_char_positions` 구현 존재, 양쪽 동시 수정 필수. TextStyle 에 effective_margin_left 필드 추가 + targeted fix (cell right inner 정렬, leading space 포함 seg_w) — **완료 5/17**
 - **F-5 ✅**: U+F007E 두 파일 글리프 충돌 가설 — 실은 매핑 오류 환상. 두 파일 동일 글리프, A-4 fix 로 자연 해소 — **완료 5/16**
 - **F-6**: ◊ U+25CA — **rhwp 메트릭 영역 (본가 영역)**. 한글 2024 안에서도 같은 모양, rhwp 에서만 길쭉. 폰트 매핑 영역 아닌 SVG 메트릭 처리 영역. 캡스톤 마감 내 fix 어려움 — **보류**
 - **F-8**: 폰트 메트릭 미세 차이 — F-6 와 동질, 메트릭 영역 (본가 영역) — **보류**
@@ -202,7 +222,9 @@ wasm-pack build --target web --dev
 **5/12-13 완료 (5건)**: A-7, B-5, A-4 (1차 매핑), E-1, F-2/F-7
 **5/16 완료 (3건)**: A-4 (3차 fallback chain 정공법), F-1, F-5 (자연 해소)
 **5/16 보류 분류**: F-6, F-8 — 메트릭 영역, 본가 영역으로 분류
-**다음 세션 우선순위**: F-4 (목차 정렬, isolated 가능성) → B-1 정면 돌파 (5/17-21) → 주무관님 답변 후 폰트 영역
+**5/17 완료 (1건)**: F-4 (단일-run RIGHT+leader, native + WASM 두 path 동시 fix)
+**5/17 추가 발견 (4건, 사용자 검토)**: 따옴표 글리프 (isolated PUA), 로마자/원 안 숫자/참고2 (자간 누적 카테고리 A 가능성)
+**다음 세션 우선순위**: 따옴표 isolated fix → 카테고리 A (자간 누적) 정면 돌파 → 주무관님 답변 후 폰트 영역
 
 ---
 
