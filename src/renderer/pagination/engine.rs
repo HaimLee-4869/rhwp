@@ -1009,7 +1009,25 @@ impl Paginator {
         page_def: &PageDef,
         para_start_height: f64,
     ) {
-        for (ctrl_idx, ctrl) in para.controls.iter().enumerate() {
+        // [Task Y-1] paragraph 내 controls 를 vertical_offset 기준 stable sort 후 처리.
+        // Why: HWP 의 ci 순서는 저장 순서일 뿐 layout 배치 순서가 아님. 한 paragraph 안에
+        //   (vert_offset=0 TAC 박스 + vert_offset>0 어울림 표) 가 공존할 때, 한컴은
+        //   offset 작은 것부터 paragraph 시작점에 inline 배치 → ci 순서대로 처리하면
+        //   어울림 표가 먼저 page split 되어 TAC 박스가 페이지 끝에 잔류 (공직기강 hwp
+        //   paragraph 0.407: ci=0 46x2 어울림 표 + ci=1 참고2 1x3 TAC).
+        // How: stable sort 이므로 같은 offset 은 원본 ci 순서 유지 → 단일 control
+        //   paragraph 등 회귀 없음. paginate_table_control 안의 `take(ctrl_idx)` 보조
+        //   로직은 원본 para.controls 인덱스 기준이므로 ctrl_idx 가 정렬된 값이어도
+        //   "이 control 까지의 prefix" 의미가 보존됨.
+        let mut ctrl_order: Vec<usize> = (0..para.controls.len()).collect();
+        ctrl_order.sort_by_key(|&i| match &para.controls[i] {
+            Control::Table(t) => t.common.vertical_offset,
+            Control::Picture(p) => p.common.vertical_offset,
+            Control::Shape(s) => s.common().vertical_offset,
+            _ => 0,
+        });
+        for ctrl_idx in ctrl_order {
+            let ctrl = &para.controls[ctrl_idx];
             match ctrl {
                 Control::Table(table) => {
                     // 글앞으로 / 글뒤로: Shape처럼 취급 — 공간 차지 없음

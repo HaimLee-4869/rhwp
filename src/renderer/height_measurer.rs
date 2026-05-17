@@ -39,6 +39,24 @@ pub fn is_tac_table_inline(table: &Table, seg_width: i32, text: &str, controls: 
         return (total_width as i32) <= seg_width;
     }
 
+    // [Task Y-1] 텍스트 없는 문단 + TAC 표 1개 + 비-TAC 어울림(TopAndBottom/Square) 표 혼재.
+    //   공직기강 hwp paragraph 0.407: ci=0 46x2 비-TAC 어울림 (vert=10.8mm) + ci=1 1x3 TAC
+    //   (vert=0mm). 한컴은 TAC 박스 (ci=1) 를 paragraph 시작점에 inline 배치하고 어울림 표
+    //   (ci=0) 를 옆에 wrap 배치 → 둘이 같은 페이지. rhwp 가 TAC 를 블록 처리하면 paragraph
+    //   끝 페이지로 밀려남 (4 페이지 시프트). 이 조건은 한컴 "참고 N + anchored 표" 패턴
+    //   ("참고1" 14p, "참고2" 16p 등) 의 일반 case.
+    if tac_tables.len() == 1 {
+        let has_non_tac_wrap = controls.iter().any(|c| matches!(c,
+            Control::Table(t) if !t.common.treat_as_char
+                && matches!(t.common.text_wrap,
+                    crate::model::shape::TextWrap::TopAndBottom
+                    | crate::model::shape::TextWrap::Square)
+        ));
+        if has_non_tac_wrap {
+            return (table_width as i32) <= seg_width;
+        }
+    }
+
     false
 }
 
