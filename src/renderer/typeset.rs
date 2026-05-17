@@ -2026,10 +2026,29 @@ impl TypesetEngine {
             } else {
                 0.0
             };
+            // [Task Y-2] 어울림 표 vert_offset 가용 높이 차감.
+            // Why: vert_rel_to=Para + vertical_offset>0 어울림 표는 paragraph 시작에서
+            //   v_offset 아래로 밀려 배치되므로 첫 분할 페이지의 가용 높이가 v_offset 만큼
+            //   줄어든다. 차감 누락 시 split 이 v_offset px 만큼 늦게 일어나
+            //   LAYOUT_OVERFLOW (공직기강 hwp pi=407 case: 31.2px). engine.rs:1693-1703
+            //   동일 시멘틱이지만 typeset 엔진은 누락되어 있었음.
+            let v_offset_px = if !table.common.treat_as_char
+                && matches!(table.common.vert_rel_to, crate::model::shape::VertRelTo::Para)
+                && table.common.vertical_offset > 0
+            {
+                crate::renderer::hwpunit_to_px(table.common.vertical_offset as i32, self.dpi)
+            } else {
+                0.0
+            };
+            let v_extra = if !is_continuation && cursor_row == 0 && content_offset == 0.0 {
+                v_offset_px
+            } else {
+                0.0
+            };
             let page_avail = if is_continuation {
                 base_available
             } else {
-                (table_available - st.current_height - caption_extra).max(0.0)
+                (table_available - st.current_height - caption_extra - v_extra).max(0.0)
             };
 
             let header_overhead = if is_continuation && mt.repeat_header && mt.has_header_cells && row_count > 1 {
