@@ -86,12 +86,25 @@ rhwp 의 텍스트 측정/배치 코드는 두 구현이 병존한다:
 
 | Path | 사용처 | 구현 | char_width 함수 |
 |---|---|---|---|
-| Native | `rhwp export-svg` CLI, native test | `EmbeddedTextMeasurer` (`text_measurement.rs:319-476`) | `measure_char_width_embedded` (Rust 임베디드 메트릭) |
-| WASM | rhwp-studio Canvas (브라우저) | `WasmTextMeasurer` (`text_measurement.rs:759-903`) | `js_measure_text_width` (브라우저 JS measureText 브리지) |
+| Native | `rhwp export-svg` CLI, native test | `EmbeddedTextMeasurer` (`text_measurement.rs:185+`, `estimate_text_width_unrounded:1051+`) | `measure_char_width_embedded` (Rust 임베디드 메트릭) + 폴백 분기 (is_narrow_punctuation 등) |
+| WASM | rhwp-studio Canvas (브라우저) | `WasmTextMeasurer` (`text_measurement.rs:656+`) → `wasm_internals::measure_char_width_hwp` (`text_measurement.rs:604+`) | `measure_char_width_embedded` (공통 DB) → JS 폴백 (`js_measure_text_width`) |
 
-**규칙**: 두 path 의 `compute_char_positions` / `\t` 처리 / char_width 영역 수정 시 **반드시 양쪽 동시 수정**.
+**규칙 (5/17 영구화 + 5/18 강화)**:
+1. 두 path 의 `compute_char_positions` / `\t` 처리 / char_width 영역 수정 시 **반드시 양쪽 동시 수정**.
+2. **`is_narrow_punctuation` 같은 분류 함수**를 native 분기에 추가했으면, `wasm_internals::measure_char_width_hwp` 의 JS 폴백 직전에도 동기화 분기 추가 (5/18 C9 패턴).
+3. **메트릭 DB 정정** (예: U+2018 fullwidth 잘못 기록) 은 native + WASM 양쪽 동시 영향 — `measure_char_width_embedded` 한 곳 수정으로 양 path 동시 fix 가능 (DB 공유).
 
-위반 시 결과: 네이티브 CLI (SVG export) 검증은 OK 통과, 그러나 rhwp-studio Canvas 시각은 NG. 5/17 F-4 1차 fix 가 정확히 이 패턴으로 NG → 2차 fix 에 WASM 추가 적용으로 OK.
+위반 시 결과: 네이티브 CLI (SVG export) 검증은 OK 통과, 그러나 rhwp-studio Canvas 시각은 NG. 5/17 F-4 1차 fix 가 정확히 이 패턴으로 NG → 2차 fix 에 WASM 추가 적용으로 OK. **5/18 C9 가운뎃점 fix 가 동일 패턴 재현** — F-4 학습 적용으로 본질 즉시 발견 + WASM path 동기화 fix.
+
+### 디폴트 pagination = TypesetEngine (5/18 영구화)
+`rendering.rs:1142-1170` 가 `RHWP_USE_PAGINATOR=1` env 없으면 `TypesetEngine::typeset_section()` 호출. **Paginator (engine.rs) 는 fallback** 경로. 따라서:
+
+| 시멘틱 | engine.rs (Paginator) | typeset.rs (TypesetEngine) |
+|---|---|---|
+| 컨트롤 sort | `process_controls` (line 1011-1028 vert_offset stable sort) | (없음 — 동기화 검토 영역) |
+| 표 split v_offset | `split_table_rows` (line 1693-1703) | `typeset_block_table` (line 2034-2057) ← **5/18 fix 적용** |
+
+**규칙**: pagination 영역 fix 시 두 엔진 동시 정합 점검 필수. 디폴트 (typeset.rs) 누락 시 fix 효과 영구 무력화.
 
 ---
 
@@ -230,23 +243,30 @@ rhwp 의 텍스트 측정/배치 코드는 두 구현이 병존한다:
 - Y-2 (numbering "1." + 공백 → 3 cell render path + Number/Outline trailing space)
 - F-3 = Y-1 부분 완료 (참고2 박스 위치 → `is_tac_table_inline` 조건 확장 + controls vert_offset sort, **anchored 표 vert_offset 적용은 5/18 trace 영역**)
 
-**5/18 진행 영역**:
-- Y-1 잔존: anchored 표 vert_offset 처리 정밀화 (`compute_table_y_position` wrap 영역)
-- 5/22 마감 prep: 발표 내용 정리
+**5/18 완료 (3건)**:
+- Y-1 후속 ✅ (참고2 박스 layout 완성 → `has_inline_tac` 가드 + `paragraph_layout` Control::Table inline 분기 추가)
+- 페이지 분할 정합 ✅ (pi=407 LAYOUT_OVERFLOW 31.2px → `typeset.rs` 어울림 표 v_offset_px 가용 높이 차감)
+- C8+C9 ✅ (좁은 구두점 U+2018/U+2019/U+2027 폭 분류 → native `is_narrow_punctuation` + `measure_char_width_embedded` halfwidth_punct override + WASM `measure_char_width_hwp` 폴백 동기화)
+
+**5/19~5/22 영역**:
+- 5/22 마감 prep: 발표 내용 정리, 본가 PR 후보 도큐먼트화
 
 **본가 PR 후보 (5/22 이후 도큐먼트화) 분류**:
-- ★★★★: anchored shape vert_offset, paragraph_layout TAC inline routing, FontLoader OS 폰트 + @font-face local()
+- ★★★★: anchored shape vert_offset, paragraph_layout TAC inline routing (Control::Table 분기 포함), FontLoader OS 폰트 + @font-face local(), **TypesetEngine + Paginator 시멘틱 동기화** (5/18), **메트릭 DB U+2018/U+2019 fullwidth 정정 + native+WASM 동기화** (5/18 C8+C9)
 - ★★★: Z, F-4 (native/WASM 일관성)
 - ★★ specific guard: X (hanging-marker), Y-2 공백 (Bullet mirror)
 - 보류 (본가 메트릭/CRDT 영역): estimate_text_width 과대 (X 본질), FieldMarkerType::Numbering variant 부재 (Y-2 inner mech), F-6/F-8 글리프 메트릭
 
-**5/17 ~ 5/18 학습 framework 14개** (mydocs/orders/20260517.md 상세):
+**5/17 ~ 5/18 학습 framework 17개** (5/17 14개: mydocs/orders/20260517.md, 5/18 3개 추가: mydocs/orders/20260518.md):
 1. native + WASM 두 path / 2. SVG ≠ Canvas / 3. 단일-run vs cross-run / 4. targeted fix /
 5. PowerShell + console 결정적 단서 / 6. 본질 분류 정정 패턴 / 7. generic vs specific /
 8. 시각 영역 vs inner mech / 9. F-4 동질 패턴 메트릭 영역 / 10. 사용자 시각 평가가 진단 정정 /
 11. 본질 위치 정정 다중 (5번 chain) / 12. native vs WASM 진짜 영역 /
 13. capstone scope framing 정정 (두 파일 → 모든 hwp 호환) /
-14. **정밀 검증 패턴 — "회귀로 보였던 것이 실은 fix 효과 + 잔존 본질"** (Y-1 결정적, 사용자 "표 지우기" 실험)
+14. **정밀 검증 패턴 — "회귀로 보였던 것이 실은 fix 효과 + 잔존 본질"** (Y-1 결정적, 사용자 "표 지우기" 실험) /
+15. **디폴트 pagination = TypesetEngine** (Paginator 는 fallback) — 양 엔진 동시 점검 필수 (5/18 페이지 분할) /
+16. **F-4 패턴 일반화 — 모든 char/layout fix 는 native + WASM 두 path 동시 점검** (5/18 C9 재현) /
+17. **inspect 도구로 메트릭 DB 잠재 본질 발견** (5/18 휴먼명조 U+2018/2019 fullwidth 잘못 기록 확정)
 
 ---
 
