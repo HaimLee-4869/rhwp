@@ -418,9 +418,28 @@ impl TextMeasurer for EmbeddedTextMeasurer {
                             // RIGHT + leader: ')' 끝이 본문 우측 끝까지 정렬되도록
                             // x = body_right - our_seg_w. 한컴 ext[0] 는 무시
                             // (한컴_seg_w 와 our_seg_w 미세 차이로 본문 우측 끝 미달).
-                            let seg_start = { let mut s = i + 1; while s < chars.len() && chars[s] == ' ' && cluster_len[s] != 0 { s += 1; } s };
-                            let seg_w = measure_segment_from(&chars, &cluster_len, seg_start, &char_width);
-                            x = (body_right - seg_w).max(x);
+                            //
+                            // [Task F-4] 단일-run 케이스 (\t + content, leading space 유무 불문)
+                            // 보정: 기존 body_right 가 effective_margin_left 미포함 → page number
+                            // right edge 가 cell right inner (= eml + available_width) 까지 미달.
+                            // 또한 seg_w 가 leading space 를 skip → digit right edge 가 body_right
+                            // 보다 space_w 만큼 overshoots. cross-run path 와 정합되도록 (=
+                            // paragraph_layout.rs:1440 effective_margin_left + available_width):
+                            //   * content 가 \t 뒤에 있으면 → cell right inner 에 정렬 (새 path).
+                            //   * content 가 없고 trailing space (또는 끝) 만 있으면 → 원본 path 유지
+                            //     (cross-run pending 이 다음 run 에서 처리).
+                            let seg_start_skipped = { let mut s = i + 1; while s < chars.len() && chars[s] == ' ' && cluster_len[s] != 0 { s += 1; } s };
+                            let has_content_after = seg_start_skipped < chars.len();
+                            if has_content_after {
+                                // 단일-run: \t 뒤에 content (leading space 유무 불문).
+                                // seg_w_full 은 i+1 부터 measure (leading space 가 있으면 포함).
+                                let seg_w_full = measure_segment_from(&chars, &cluster_len, i + 1, &char_width);
+                                let cell_right_run_rel = style.effective_margin_left + style.available_width - style.line_x_offset;
+                                x = (cell_right_run_rel - seg_w_full).max(x);
+                            } else {
+                                let seg_w = measure_segment_from(&chars, &cluster_len, seg_start_skipped, &char_width);
+                                x = (body_right - seg_w).max(x);
+                            }
                         }
                         _ => {
                             x = tab_target.max(x);
@@ -818,9 +837,18 @@ impl TextMeasurer for WasmTextMeasurer {
                     };
                     match tab_type {
                         2 if fill_low != 0 => { // RIGHT + leader: body_right 정렬
-                            let seg_start = { let mut s = i + 1; while s < chars.len() && chars[s] == ' ' && cluster_len[s] != 0 { s += 1; } s };
-                            let seg_w = measure_segment_from(&chars, &cluster_len, seg_start, &char_width);
-                            x = (body_right - seg_w).max(x);
+                            // [Task F-4] 단일-run 케이스 (\t + content) 보정.
+                            // EmbeddedTextMeasurer 정합 (text_measurement.rs:417-441).
+                            let seg_start_skipped = { let mut s = i + 1; while s < chars.len() && chars[s] == ' ' && cluster_len[s] != 0 { s += 1; } s };
+                            let has_content_after = seg_start_skipped < chars.len();
+                            if has_content_after {
+                                let seg_w_full = measure_segment_from(&chars, &cluster_len, i + 1, &char_width);
+                                let cell_right_run_rel = style.effective_margin_left + style.available_width - style.line_x_offset;
+                                x = (cell_right_run_rel - seg_w_full).max(x);
+                            } else {
+                                let seg_w = measure_segment_from(&chars, &cluster_len, seg_start_skipped, &char_width);
+                                x = (body_right - seg_w).max(x);
+                            }
                         }
                         2 => { // RIGHT (no leader)
                             let seg_start = { let mut s = i + 1; while s < chars.len() && chars[s] == ' ' && cluster_len[s] != 0 { s += 1; } s };
@@ -911,6 +939,7 @@ pub(crate) fn resolved_to_text_style(styles: &ResolvedStyleSet, char_style_id: u
             auto_tab_right: false,
             available_width: 0.0,
             line_x_offset: 0.0,
+            effective_margin_left: 0.0,
             tab_leaders: Vec::new(),
             inline_tabs: Vec::new(),
             extra_word_spacing: 0.0,

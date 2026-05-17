@@ -111,6 +111,9 @@ pub struct TextStyle {
     pub available_width: f64,
     /// 단 시작으로부터 run 시작 위치 (탭 절대좌표 변환용)
     pub line_x_offset: f64,
+    /// 문단 effective_margin_left (px). RIGHT + leader 탭 의 cell right inner 계산용
+    /// (= col_area.x + effective_margin_left + available_width). 0.0 이면 마진 없음.
+    pub effective_margin_left: f64,
     /// 탭 리더 정보 (compute_char_positions 후 채움)
     pub tab_leaders: Vec<TabLeaderInfo>,
     /// HWPX 인라인 탭 확장 데이터 ([width, leader, type, ...])
@@ -184,6 +187,7 @@ impl Default for TextStyle {
             auto_tab_right: false,
             available_width: 0.0,
             line_x_offset: 0.0,
+            effective_margin_left: 0.0,
             tab_leaders: Vec::new(),
             inline_tabs: Vec::new(),
             extra_word_spacing: 0.0,
