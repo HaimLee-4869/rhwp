@@ -127,8 +127,19 @@ const loadedFiles = new Set<string>();
  */
 const OS_FONT_CANDIDATES = [
   // Windows
-  '맑은 고딕', 'Malgun Gothic', '바탕', 'Batang', '돋움', 'Dotum',
+  '맑은 고딕', 'Malgun Gothic', '맑은 고딕 Semilight', 'Malgun Gothic Semilight',
+  '바탕', 'Batang', '돋움', 'Dotum',
   '굴림', 'Gulim', '굴림체', 'GulimChe', '바탕체', 'BatangChe', '궁서', 'Gungsuh',
+  // ★ [Task 카테고리 A] 한컴 HY 시리즈 (Windows 등 한컴 제품 환경) — OS 매칭으로 정합 메트릭 사용
+  // PowerShell 검증: 사용자 시스템에 family-name 등록 확인. 누락 시 NotoSerifKR/NotoSansKR 로
+  // 웹폰트 fallback 되어 rhwp 내장 메트릭 (HYMyeongJo-Extra 등) 과 불일치 → 자간 누적.
+  'HY견명조', 'HY헤드라인M', 'HY신명조', 'HY견고딕', 'HY중고딕', 'HY그래픽', 'HY그래픽M',
+  'HY궁서', 'HY엽서L', 'HY엽서M', 'HY울릉도B', 'HY울릉도M',
+  // 휴먼/함초롬/한컴 시리즈 (한컴오피스 동반 설치)
+  '휴먼명조', '휴먼고딕', '휴먼옛체',
+  '함초롬바탕', '함초롬바탕 확장', '함초롬바탕 확장B',
+  '함초롬돋움', '함초롬돋움 확장',
+  '한컴 고딕', '한컴 바탕', '한컴 돋움', '한컴산뜻돋움',
   // macOS / iOS
   'Apple SD Gothic Neo', 'AppleMyungjo', 'AppleGothic',
   // Android
@@ -178,7 +189,14 @@ export async function loadWebFonts(
     style.textContent = FONT_LIST.map(f => {
       const fmt = f.format ?? 'woff2';
       const ur = f.unicodeRange ? ` unicode-range: ${f.unicodeRange};` : '';
-      return `@font-face { font-family: "${f.name}"; src: url("${f.file}") format("${fmt}"); font-display: swap;${ur} }`;
+      // ★ [Task 카테고리 A] OS 에 동일 이름 폰트가 있으면 `local()` 으로 시스템 폰트 우선 사용.
+      // 미적용 시: @font-face 의 url() 만 src 로 등록 → 브라우저가 시스템 HY견명조 무시 +
+      // NotoSerifKR-Bold 사용 → rhwp 내장 메트릭 (HYMyeongJo-Extra) 와 advance 불일치 → 자간 누적.
+      // local() + url() 동시 src: 시스템 매칭 시 시스템 폰트, 미설치 시 url 폴백 (regression 0).
+      const src = detectedOSFonts.has(f.name)
+        ? `local("${f.name}"), url("${f.file}") format("${fmt}")`
+        : `url("${f.file}") format("${fmt}")`;
+      return `@font-face { font-family: "${f.name}"; src: ${src}; font-display: swap;${ur} }`;
     }).join('\n');
     document.head.appendChild(style);
     fontFaceRegistered = true;
