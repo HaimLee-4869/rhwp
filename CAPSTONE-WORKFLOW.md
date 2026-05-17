@@ -222,9 +222,31 @@ rhwp 의 텍스트 측정/배치 코드는 두 구현이 병존한다:
 **5/12-13 완료 (5건)**: A-7, B-5, A-4 (1차 매핑), E-1, F-2/F-7
 **5/16 완료 (3건)**: A-4 (3차 fallback chain 정공법), F-1, F-5 (자연 해소)
 **5/16 보류 분류**: F-6, F-8 — 메트릭 영역, 본가 영역으로 분류
-**5/17 완료 (1건)**: F-4 (단일-run RIGHT+leader, native + WASM 두 path 동시 fix)
-**5/17 추가 발견 (4건, 사용자 검토)**: 따옴표 글리프 (isolated PUA), 로마자/원 안 숫자/참고2 (자간 누적 카테고리 A 가능성)
-**다음 세션 우선순위**: 따옴표 isolated fix → 카테고리 A (자간 누적) 정면 돌파 → 주무관님 답변 후 폰트 영역
+**5/17 ~ 5/18 새벽 완료 (6건 + 1 부분 완료)**:
+- F-4 (단일-run RIGHT+leader, native + WASM 두 path)
+- 카테고리 A (따옴표 / 로마자 / 원 안 숫자 → 자간 누적 → FontLoader OS 폰트 + @font-face local())
+- Z = C-1 (`detect_lang_category` 숫자 분리 제거 → 한글 본문 폰트 통일)
+- X (사전검증 ① 정렬 → hanging-marker guard, 진짜 본질은 본가 PR 영역)
+- Y-2 (numbering "1." + 공백 → 3 cell render path + Number/Outline trailing space)
+- F-3 = Y-1 부분 완료 (참고2 박스 위치 → `is_tac_table_inline` 조건 확장 + controls vert_offset sort, **anchored 표 vert_offset 적용은 5/18 trace 영역**)
+
+**5/18 진행 영역**:
+- Y-1 잔존: anchored 표 vert_offset 처리 정밀화 (`compute_table_y_position` wrap 영역)
+- 5/22 마감 prep: 발표 내용 정리
+
+**본가 PR 후보 (5/22 이후 도큐먼트화) 분류**:
+- ★★★★: anchored shape vert_offset, paragraph_layout TAC inline routing, FontLoader OS 폰트 + @font-face local()
+- ★★★: Z, F-4 (native/WASM 일관성)
+- ★★ specific guard: X (hanging-marker), Y-2 공백 (Bullet mirror)
+- 보류 (본가 메트릭/CRDT 영역): estimate_text_width 과대 (X 본질), FieldMarkerType::Numbering variant 부재 (Y-2 inner mech), F-6/F-8 글리프 메트릭
+
+**5/17 ~ 5/18 학습 framework 14개** (mydocs/orders/20260517.md 상세):
+1. native + WASM 두 path / 2. SVG ≠ Canvas / 3. 단일-run vs cross-run / 4. targeted fix /
+5. PowerShell + console 결정적 단서 / 6. 본질 분류 정정 패턴 / 7. generic vs specific /
+8. 시각 영역 vs inner mech / 9. F-4 동질 패턴 메트릭 영역 / 10. 사용자 시각 평가가 진단 정정 /
+11. 본질 위치 정정 다중 (5번 chain) / 12. native vs WASM 진짜 영역 /
+13. capstone scope framing 정정 (두 파일 → 모든 hwp 호환) /
+14. **정밀 검증 패턴 — "회귀로 보였던 것이 실은 fix 효과 + 잔존 본질"** (Y-1 결정적, 사용자 "표 지우기" 실험)
 
 ---
 
