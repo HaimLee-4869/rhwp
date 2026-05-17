@@ -978,6 +978,20 @@ impl LayoutEngine {
         if any_multiline_distributed {
             return (pad_left, pad_right);
         }
+        // [Task X] hanging marker (indent < 0) 로 의도된 single line paragraph 는
+        // padding shrink 제외. 한컴은 자연 폭 추정 결과와 무관하게 padding 유지.
+        // 본질: estimate_text_width 의 5~15% 과대 추정으로 hanging-marker paragraph 가
+        // overflow 로 잘못 판정 → cell padding 좌측 축소 → marker (①②③ 등) 가 cell wall
+        // 에 닿음. hanging-marker 의 HWP spec 의도 (paragraph_layout.rs:842-848 line_indent
+        // 처리) 와 정합되도록 padding shrink 미적용.
+        let any_hanging_marker = paragraphs.iter()
+            .any(|p| {
+                let ps = styles.para_styles.get(p.para_shape_id as usize);
+                ps.map(|s| s.indent < 0.0 && p.line_segs.len() == 1).unwrap_or(false)
+            });
+        if any_hanging_marker {
+            return (pad_left, pad_right);
+        }
 
         let mut max_line_w = 0.0f64;
         for comp in composed_paras {
@@ -1326,8 +1340,14 @@ impl LayoutEngine {
             // 셀 패딩 (cell.padding이 0이면 table.padding fallback)
             let (mut pad_left, mut pad_right, pad_top, pad_bottom) = self.resolve_cell_padding(cell, table);
 
-            let mut composed_paras: Vec<_> = cell.paragraphs.iter()
-                .map(|p| compose_paragraph(p))
+            // [Task Y-2] 본문 표 cell paragraph 의 자동 번호 적용. 본문 paragraph path
+            // (layout.rs:2036/2055/2160) 와 동일 패턴. table_cell_content.rs (embedded table)
+            // 도 동일 fix 적용. 미적용 시 셀 안 head_type=Number paragraph 의 "1." 누락.
+            let mut composed_paras: Vec<ComposedParagraph> = cell.paragraphs.iter()
+                .map(|p| {
+                    let comp = compose_paragraph(p);
+                    self.apply_paragraph_numbering(Some(&comp), p, styles, 0).unwrap_or(comp)
+                })
                 .collect();
 
             // 텍스트 오버플로우 시 좌우 패딩 축소
