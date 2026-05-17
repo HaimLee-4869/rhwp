@@ -382,8 +382,12 @@ pub fn detect_lang_category(ch: char) -> usize {
         // Hangul Jamo Extended-A/B
         0xA960..=0xA97F | 0xD7B0..=0xD7FF => 0,
 
-        // 영어/라틴: Basic Latin letters+digits, Latin Extended
-        0x0041..=0x005A | 0x0061..=0x007A | 0x0030..=0x0039 |
+        // 영어/라틴: Basic Latin letters (digits 제외), Latin Extended
+        // [Task C-1] ASCII 숫자 (0x0030-0x0039) 는 영어 분류에서 제외 → `_ => 0` 폴백 한국어.
+        // 사유: 한컴은 본문 paragraph 안 숫자에 본문 폰트 (lang=0) 그대로 적용. rhwp 가
+        // 영어 (lang=1) 로 분류하면 CharShape.font_faces[1] 의 HCI Poppy (→ Palatino Linotype)
+        // 가 매칭되어 시각 어긋남. detect 단계에서 숫자를 한국어로 분류해 split 미발생.
+        0x0041..=0x005A | 0x0061..=0x007A |
         0x00C0..=0x024F |
         // Latin Extended Additional, Extended-B (subset)
         0x1E00..=0x1EFF => 1,
@@ -1030,9 +1034,10 @@ mod tests {
     fn test_detect_lang_category_english() {
         assert_eq!(detect_lang_category('A'), 1);
         assert_eq!(detect_lang_category('z'), 1);
-        assert_eq!(detect_lang_category('0'), 1);
-        assert_eq!(detect_lang_category('9'), 1);
         assert_eq!(detect_lang_category('é'), 1); // Latin Extended
+        // [Task C-1] 숫자는 본문 폰트 따라가도록 한국어(0) 분류. 영어 lang split 미발생.
+        assert_eq!(detect_lang_category('0'), 0);
+        assert_eq!(detect_lang_category('9'), 0);
     }
 
     #[test]
