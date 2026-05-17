@@ -612,6 +612,17 @@ mod wasm_internals {
             return hangul_width_hwp as f64 / 75.0;
         }
 
+        // [Task D - F-4 패턴 동기화] narrow punctuation 폴백.
+        // Why: EmbeddedTextMeasurer (native) 의 char_width 가 is_narrow_punctuation
+        //   분기로 0.3em 처리하는데, WASM path 는 JS Canvas 측정값을 그대로 받아
+        //   ~0.5em 으로 폴백됨 (휴먼명조 U+2027 케이스). 두 path 동기화.
+        // How: 1/2 차 미적용 char 중 narrow punctuation 은 0.3em 강제.
+        //   measure_char_width_embedded 의 fix 2 (DB fullwidth 정정) 와 함께
+        //   native + WASM 양쪽 일관 동작.
+        if super::is_narrow_punctuation(c) {
+            return font_size * 0.3;
+        }
+
         // 3차: JS 폴백 (미등록 폰트)
         let raw_px = cached_js_measure(measure_font, c);
         let actual_px = raw_px * font_size / 1000.0;
@@ -989,7 +1000,17 @@ fn measure_char_width_embedded(font_family: &str, bold: bool, italic: bool, c: c
         let is_halfwidth_punct = matches!(c,
             '\u{2018}'..='\u{2027}' // ''‚‛""„‟†‡•‣․‥…‧ 구두점/기호
         );
-        if is_halfwidth_punct && glyph_w >= mm.metric.em_size {
+        // [Task D] 휴먼명조/HY중고딕/HY신명조 등 일부 폰트 DB 가
+        //   U+2018/U+2019/U+2027 을 fullwidth (1.0 em) 로 잘못 기록.
+        // Why: em/2 (0.5 em) 강제 시 한컴 대비 약 4px (font-size 20px 기준,
+        //   0.5→0.3 em 차) 과대. 한컴 PDF 정합 0.3 em 강제.
+        // How: glyph_w 가 비정상 fullwidth (>= em_size) 인 경우에만 0.3 em
+        //   강제. 함초롬바탕(0.32) / Pretendard(0.22) 등 정상 DB 값은 영향
+        //   없음 (조건 미충족).
+        let is_narrow_unicode_punct = matches!(c, '\u{2018}' | '\u{2019}' | '\u{2027}');
+        if is_narrow_unicode_punct && glyph_w >= mm.metric.em_size {
+            (mm.metric.em_size as f64 * 0.3) as u16
+        } else if is_halfwidth_punct && glyph_w >= mm.metric.em_size {
             mm.metric.em_size / 2
         } else {
             glyph_w
@@ -1117,7 +1138,13 @@ pub(crate) fn is_cjk_char(c: char) -> bool {
 fn is_narrow_punctuation(c: char) -> bool {
     matches!(c,
         ',' | '.' | ':' | ';' | '\'' | '"' | '`' |
-        '\u{00B7}'   // · MIDDLE DOT
+        '\u{00B7}' |   // · MIDDLE DOT
+        // [Task D] General Punctuation 좁은 글리프 - 메트릭 DB 미수록 폰트 폴백.
+        // Why: 휴먼명조 U+2027 등이 DB 에 없을 때 폴백 `font_size * 0.5` 가
+        //   한컴 대비 ~10px 과대 (font-size 20px 기준). 한컴은 약 0.25-0.3 em.
+        '\u{2018}' |   // ' LEFT SINGLE QUOTATION MARK
+        '\u{2019}' |   // ' RIGHT SINGLE QUOTATION MARK
+        '\u{2027}'     // ‧ HYPHENATION POINT
     )
 }
 
