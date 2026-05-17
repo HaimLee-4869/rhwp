@@ -2270,6 +2270,28 @@ impl LayoutEngine {
                                     );
                                     img_x += tac_w;
                                 }
+                                // [Task Y-1] 빈 paragraph + inline TAC Table 처리. 한컴 "참고N"
+                                //   박스 패턴 (paragraph 안 TAC Table + non-TAC 어울림 표 혼재) 의
+                                //   inline render. 공직기강 paragraph 0.407 ci=1 (참고2 1x3 TAC).
+                                //   layout_table 호출하여 col_node 에 직접 표 추가 (Picture/Shape
+                                //   는 line_node.children push 하지만 layout_table 은 자체 col_node
+                                //   대상 호출 필요 — Table cell content 모두 layout 처리).
+                                if let Control::Table(tbl) = ctrl {
+                                    if tbl.common.treat_as_char {
+                                        let tbl_h = hwpunit_to_px(tbl.common.height as i32, self.dpi);
+                                        let tbl_y = (y + baseline - tbl_h).max(y);
+                                        let _ = self.layout_table(
+                                            tree, col_node, tbl.as_ref(),
+                                            section_index, styles, col_area,
+                                            tbl_y, bdc, None, 0,
+                                            Some((para_index, tac_ci)),
+                                            alignment, cell_ctx.clone(),
+                                            0.0, 0.0,
+                                            Some(img_x), None, Some(tbl_y),
+                                        );
+                                        img_x += tac_w;
+                                    }
+                                }
                             }
                         }
                     }

@@ -2672,24 +2672,37 @@ impl LayoutEngine {
                     .unwrap_or(false);
                 if !is_tac {
                     let has_real_text = para.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}');
-                    if has_real_text {
+                    // [Task Y-1] composed.tac_controls 가 비어있지 않으면 (inline TAC 박스 존재)
+                    //   host paragraph layout 호출 — paragraph 의 line[0] inline TAC 박스 렌더링.
+                    //   공직기강 paragraph 0.407 (text_len=0 + ci=1 inline 참고2 박스 + ci=0
+                    //   anchored 큰 표): 기존 has_real_text 만 가드 시 빈 paragraph 라 layout skip
+                    //   → 박스 렌더링 누락 → 큰 표가 박스 위 그려진 것처럼 보임.
+                    let has_inline_tac = composed.get(para_index)
+                        .map(|c| !c.tac_controls.is_empty())
+                        .unwrap_or(false);
+                    if has_real_text || has_inline_tac {
                         if let Some(comp) = composed.get(para_index) {
                             let text_start_line = comp.lines.iter().position(|line| {
                                 line.runs.iter().any(|r| r.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}'))
                             });
-                            if let Some(start_line) = text_start_line {
-                                let text_end_line = comp.lines.iter().rposition(|line| {
-                                    line.runs.iter().any(|r| r.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}'))
-                                }).map(|i| i + 1).unwrap_or(comp.lines.len());
-                                para_start_y.insert(para_index, y_offset);
-                                let _text_y_end = self.layout_partial_paragraph(
-                                    tree, col_node, para, Some(comp), styles,
-                                    col_area, y_offset, start_line, text_end_line,
-                                    page_content.section_index, para_index,
-                                    *multi_col_width, Some(bin_data_content),
-                                    wrap_anchors.get(&para_index),
-                                );
-                            }
+                            // text 없을 때 (inline TAC 만) 는 paragraph 의 모든 line 처리.
+                            let (start_line, end_line) = match text_start_line {
+                                Some(s) => {
+                                    let e = comp.lines.iter().rposition(|line| {
+                                        line.runs.iter().any(|r| r.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}'))
+                                    }).map(|i| i + 1).unwrap_or(comp.lines.len());
+                                    (s, e)
+                                }
+                                None => (0, comp.lines.len()),
+                            };
+                            para_start_y.insert(para_index, y_offset);
+                            let _text_y_end = self.layout_partial_paragraph(
+                                tree, col_node, para, Some(comp), styles,
+                                col_area, y_offset, start_line, end_line,
+                                page_content.section_index, para_index,
+                                *multi_col_width, Some(bin_data_content),
+                                wrap_anchors.get(&para_index),
+                            );
                         }
                     }
                 }
