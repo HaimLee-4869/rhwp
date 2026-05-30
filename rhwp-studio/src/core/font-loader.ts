@@ -9,16 +9,23 @@
 interface FontEntry {
   name: string;
   file: string;
-  /** woff2(기본) 또는 woff — CDN woff 파일용 */
-  format?: 'woff2' | 'woff';
+  /** woff2(기본) / woff(CDN) / truetype(전북AI 서버 진본 TTF) */
+  format?: 'woff2' | 'woff' | 'truetype';
   /** CSS unicode-range — 지정 시 해당 코드포인트만 매칭, 다운로드도 해당 영역 사용 시에만 발생 */
   unicodeRange?: string;
+  /** font-weight — 같은 name 으로 Regular(400)/Bold(700) 쌍 등록 시 문서 bold 속성으로 선택 */
+  weight?: number;
 }
 
 // 함초롬체 CDN (눈누 jsdelivr — 비상업적 사용 허용, 한컴 라이선스)
 const CDN_HAMCHOB_R = 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2104@1.0/HANBatang.woff';
 const CDN_HAMCHOB_B = 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2104@1.0/HANBatangB.woff';
 const CDN_HAMCHOD_R = 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_four@1.0/HCRDotum.woff';
+
+// 전북AI 서버 진본 TTF (도청 납품 레이어 전용 — 한컴 라이선스, 본가 PR 첨부 금지)
+// ★ same-origin URL: 페이지가 어디에서 뜨든 (ai/ai2.jb.go.kr/staging 등) 자기 도메인에서 폰트
+// fetch → 도청 로그인 쿠키가 자동으로 따라가 진본 폰트 응답 + 한컴 상용 라이선스 보호.
+const JB_ALPHA_EXTRA = '/rhwp-alpha/fonts/extra/';
 
 // 한컴 webhwp CSS(@font-face) 매핑 기준 + HWP 문서에서 사용하는 별칭
 const FONT_LIST: FontEntry[] = [
@@ -31,28 +38,82 @@ const FONT_LIST: FontEntry[] = [
   { name: '한컴바탕', file: CDN_HAMCHOB_R, format: 'woff' },
   { name: '새돋움', file: CDN_HAMCHOD_R, format: 'woff' },
   { name: '새바탕', file: CDN_HAMCHOB_R, format: 'woff' },
-  // === 한컴 HY 폰트 → 오픈소스 대체 ===
-  { name: 'HY헤드라인M', file: 'fonts/NotoSansKR-Bold.woff2' },
-  { name: 'HYHeadLine M', file: 'fonts/NotoSansKR-Bold.woff2' },
-  { name: 'HYHeadLine Medium', file: 'fonts/NotoSansKR-Bold.woff2' },
-  { name: 'HY견고딕', file: 'fonts/NotoSansKR-Bold.woff2' },
-  { name: 'HYGothic-Extra', file: 'fonts/NotoSansKR-Bold.woff2' },
-  { name: 'HY그래픽', file: 'fonts/NotoSansKR-Regular.woff2' },
-  { name: 'HYGraphic-Medium', file: 'fonts/NotoSansKR-Regular.woff2' },
-  { name: 'HY그래픽M', file: 'fonts/NotoSansKR-Regular.woff2' },
-  { name: 'HY견명조', file: 'fonts/NotoSerifKR-Bold.woff2' },
-  { name: 'HYMyeongJo-Extra', file: 'fonts/NotoSerifKR-Bold.woff2' },
-  { name: 'HY신명조', file: 'fonts/NotoSerifKR-Regular.woff2' },
-  { name: 'HY중고딕', file: 'fonts/NotoSansKR-Regular.woff2' },
+  // === 한컴 HY/한양/휴먼/시스템 폰트 → 전북AI 서버 진본 TTF (도청 납품 전용) ===
+  // 한컴 라이선스 — 본가 GitHub PR 첨부 금지. 도청 환경 alpha 서버에서만 사용.
+  { name: 'HY헤드라인M', file: JB_ALPHA_EXTRA + 'H2HDRM.TTF', format: 'truetype' },
+  { name: 'HYHeadLine M', file: JB_ALPHA_EXTRA + 'H2HDRM.TTF', format: 'truetype' },
+  { name: 'HYHeadLine-Medium', file: JB_ALPHA_EXTRA + 'H2HDRM.TTF', format: 'truetype' },
+  { name: 'HYHeadLine Medium', file: JB_ALPHA_EXTRA + 'H2HDRM.TTF', format: 'truetype' },
+  { name: 'HY견고딕', file: JB_ALPHA_EXTRA + 'HYGTRE.TTF', format: 'truetype' },
+  { name: 'HYGothic-Extra', file: JB_ALPHA_EXTRA + 'HYGTRE.TTF', format: 'truetype' },
+  { name: 'HY중고딕', file: JB_ALPHA_EXTRA + 'H2GTRM.TTF', format: 'truetype' },
+  { name: 'HYGothic-Medium', file: JB_ALPHA_EXTRA + 'H2GTRM.TTF', format: 'truetype' },
+  { name: 'HY견명조', file: JB_ALPHA_EXTRA + 'HYMJRE.TTF', format: 'truetype' },
+  { name: 'HYMyeongJo-Extra', file: JB_ALPHA_EXTRA + 'HYMJRE.TTF', format: 'truetype' },
+  { name: 'HY신명조', file: JB_ALPHA_EXTRA + 'H2MJSM.TTF', format: 'truetype' },
+  { name: 'HYSinMyeongJo-Medium', file: JB_ALPHA_EXTRA + 'H2MJSM.TTF', format: 'truetype' },
+  { name: 'HY그래픽', file: JB_ALPHA_EXTRA + 'HYGPRM.TTF', format: 'truetype' },
+  { name: 'HYGraphic', file: JB_ALPHA_EXTRA + 'HYGPRM.TTF', format: 'truetype' },
+  { name: 'HY그래픽M', file: JB_ALPHA_EXTRA + 'H2GPRM.TTF', format: 'truetype' },
+  { name: 'HYGraphic-Medium', file: JB_ALPHA_EXTRA + 'H2GPRM.TTF', format: 'truetype' },
+  { name: 'HY궁서', file: JB_ALPHA_EXTRA + 'HYGSRB.TTF', format: 'truetype' },
+  { name: 'HY궁서B', file: JB_ALPHA_EXTRA + 'H2GSRB.TTF', format: 'truetype' },
+  { name: 'HYGungSo-Bold', file: JB_ALPHA_EXTRA + 'H2GSRB.TTF', format: 'truetype' },
+  { name: 'HY얕은샘물M', file: JB_ALPHA_EXTRA + 'H2SA1M.TTF', format: 'truetype' },
+  { name: 'HY엽서L', file: JB_ALPHA_EXTRA + 'H2PORL.TTF', format: 'truetype' },
+  { name: 'HY엽서M', file: JB_ALPHA_EXTRA + 'H2PORM.TTF', format: 'truetype' },
+  { name: 'HY목각파임B', file: JB_ALPHA_EXTRA + 'H2MKPB.TTF', format: 'truetype' },
+  // 휴먼 시리즈
+  { name: '휴먼명조', file: JB_ALPHA_EXTRA + 'HMKMM.TTF', format: 'truetype' },
+  { name: '휴먼고딕', file: JB_ALPHA_EXTRA + 'HMKMG.TTF', format: 'truetype' },
+  { name: '휴먼아미체', file: JB_ALPHA_EXTRA + 'HMKMAMI.TTF', format: 'truetype' },
+  { name: 'Ami R', file: JB_ALPHA_EXTRA + 'HMKMAMI.TTF', format: 'truetype' },
+  { name: '휴먼매직체', file: JB_ALPHA_EXTRA + 'HMKMMAG.TTF', format: 'truetype' },
+  { name: 'Magic R', file: JB_ALPHA_EXTRA + 'HMKMMAG.TTF', format: 'truetype' },
+  { name: '휴먼둥근헤드라인', file: JB_ALPHA_EXTRA + 'HMKMRHD.TTF', format: 'truetype' },
+  { name: 'Headline R', file: JB_ALPHA_EXTRA + 'HMKMRHD.TTF', format: 'truetype' },
+  { name: '휴먼옛체', file: JB_ALPHA_EXTRA + 'HMKMOLD.TTF', format: 'truetype' },
+  { name: 'Yet R', file: JB_ALPHA_EXTRA + 'HMFMOLD.TTF', format: 'truetype' },
+  { name: '휴먼편지체', file: JB_ALPHA_EXTRA + 'HMFMPYUN.TTF', format: 'truetype' },
+  { name: 'Pyunji R', file: JB_ALPHA_EXTRA + 'HMFMPYUN.TTF', format: 'truetype' },
+  { name: '휴먼가는샘체', file: JB_ALPHA_EXTRA + 'HMKLS.TTF', format: 'truetype' },
+  { name: '휴먼중간샘체', file: JB_ALPHA_EXTRA + 'HMKMS.TTF', format: 'truetype' },
+  { name: '휴먼굵은샘체', file: JB_ALPHA_EXTRA + 'HMKBS.TTF', format: 'truetype' },
+  { name: '휴먼가는팸체', file: JB_ALPHA_EXTRA + 'HMKLP.TTF', format: 'truetype' },
+  { name: '휴먼중간팸체', file: JB_ALPHA_EXTRA + 'HMKMP.TTF', format: 'truetype' },
+  { name: '휴먼굵은팸체', file: JB_ALPHA_EXTRA + 'HMKBP.TTF', format: 'truetype' },
+  { name: '가는안상수체', file: JB_ALPHA_EXTRA + 'HMKLA.TTF', format: 'truetype' },
+  { name: '중간안상수체', file: JB_ALPHA_EXTRA + 'HMKMA.TTF', format: 'truetype' },
+  { name: '굵은안상수체', file: JB_ALPHA_EXTRA + 'HMKBA.TTF', format: 'truetype' },
+  // 한컴 시스템 폰트 — 서버 진본 Regular/Bold 쌍 (문서 bold 속성으로 font-weight 선택)
+  { name: '맑은 고딕', file: JB_ALPHA_EXTRA + 'malgun.ttf', format: 'truetype', weight: 400 },
+  { name: '맑은 고딕', file: JB_ALPHA_EXTRA + 'malgunbd.ttf', format: 'truetype', weight: 700 },
+  { name: 'Malgun Gothic', file: JB_ALPHA_EXTRA + 'malgun.ttf', format: 'truetype', weight: 400 },
+  { name: 'Malgun Gothic', file: JB_ALPHA_EXTRA + 'malgunbd.ttf', format: 'truetype', weight: 700 },
+  { name: '새굴림', file: JB_ALPHA_EXTRA + 'NGULIM.TTF', format: 'truetype' },
+  { name: 'New Gulim', file: JB_ALPHA_EXTRA + 'NGULIM.TTF', format: 'truetype' },
+  // 한컴 함초롬/HCR (서버 진본 Regular/Bold 쌍 — CDN 보다 우선)
+  { name: '함초롬바탕', file: JB_ALPHA_EXTRA + 'HANBatang.ttf', format: 'truetype', weight: 400 },
+  { name: '함초롬바탕', file: JB_ALPHA_EXTRA + 'HANBatangB.ttf', format: 'truetype', weight: 700 },
+  { name: 'HCR Batang', file: JB_ALPHA_EXTRA + 'HANBatang.ttf', format: 'truetype', weight: 400 },
+  { name: 'HCR Batang', file: JB_ALPHA_EXTRA + 'HANBatangB.ttf', format: 'truetype', weight: 700 },
+  { name: '함초롬바탕 확장', file: JB_ALPHA_EXTRA + 'HANBatangExt.ttf', format: 'truetype' },
+  { name: 'HCR Batang Ext', file: JB_ALPHA_EXTRA + 'HANBatangExt.ttf', format: 'truetype' },
+  { name: '함초롬바탕 확장B', file: JB_ALPHA_EXTRA + 'HANBatangExtBB.ttf', format: 'truetype' },
+  { name: 'HCR Batang ExtB', file: JB_ALPHA_EXTRA + 'HANBatangExtBB.ttf', format: 'truetype' },
+  { name: '함초롬돋움', file: JB_ALPHA_EXTRA + 'HANDotum.ttf', format: 'truetype', weight: 400 },
+  { name: '함초롬돋움', file: JB_ALPHA_EXTRA + 'HANDotumB.ttf', format: 'truetype', weight: 700 },
+  { name: 'HCR Dotum', file: JB_ALPHA_EXTRA + 'HANDotum.ttf', format: 'truetype', weight: 400 },
+  { name: 'HCR Dotum', file: JB_ALPHA_EXTRA + 'HANDotumB.ttf', format: 'truetype', weight: 700 },
+  { name: '함초롬돋움 확장', file: JB_ALPHA_EXTRA + 'HANDotumExt.ttf', format: 'truetype' },
+  { name: 'HCR Dotum Ext', file: JB_ALPHA_EXTRA + 'HANDotumExt.ttf', format: 'truetype' },
+  // 양재 (서버 진본)
   { name: '양재튼튼체B', file: 'fonts/NotoSansKR-Bold.woff2' },
-  // === 한글 시스템 폰트 → 오픈소스 대체 (OS 폰트 없을 때 폴백) ===
-  { name: 'Malgun Gothic', file: 'fonts/Pretendard-Regular.woff2' },
-  { name: '맑은 고딕', file: 'fonts/Pretendard-Regular.woff2' },
+  // === 한글 시스템 폰트 (서버 진본 없음 — oss 대체로 폴백) ===
   { name: '돋움', file: 'fonts/NotoSansKR-Regular.woff2' },
   { name: '돋움체', file: 'fonts/NotoSansKR-Regular.woff2' },
   { name: '굴림', file: 'fonts/NotoSansKR-Regular.woff2' },
   { name: '굴림체', file: 'fonts/D2Coding-Regular.woff2' },
-  { name: '새굴림', file: 'fonts/NotoSansKR-Regular.woff2' },
   { name: '바탕', file: 'fonts/NotoSerifKR-Regular.woff2' },
   { name: '바탕체', file: 'fonts/D2Coding-Regular.woff2' },
   { name: '궁서', file: 'fonts/GowunBatang-Regular.woff2' },
@@ -178,7 +239,8 @@ export async function loadWebFonts(
     style.textContent = FONT_LIST.map(f => {
       const fmt = f.format ?? 'woff2';
       const ur = f.unicodeRange ? ` unicode-range: ${f.unicodeRange};` : '';
-      return `@font-face { font-family: "${f.name}"; src: url("${f.file}") format("${fmt}"); font-display: swap;${ur} }`;
+      const fw = f.weight ? ` font-weight: ${f.weight};` : '';
+      return `@font-face { font-family: "${f.name}"; src: url("${f.file}") format("${fmt}"); font-display: swap;${fw}${ur} }`;
     }).join('\n');
     document.head.appendChild(style);
     fontFaceRegistered = true;
@@ -229,8 +291,9 @@ export async function loadWebFonts(
       try {
         const names = fileToNames.get(f.file) ?? [f.name];
         const fmt = f.format ?? 'woff2';
+        const desc: FontFaceDescriptors = f.weight ? { weight: String(f.weight) } : {};
         for (const name of names) {
-          const face = new FontFace(name, `url(${f.file}) format('${fmt}')`);
+          const face = new FontFace(name, `url(${f.file}) format('${fmt}')`, desc);
           const result = await face.load();
           document.fonts.add(result);
         }
