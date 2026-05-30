@@ -22,6 +22,16 @@ export default defineConfig({
       // [Task #741 후속] 외부 file path 그림 영역 영역 samples/ dir 영역 영역 fetch 가능 영역.
       allow: [__dirname, resolve(__dirname, '..', 'pkg'), resolve(__dirname, '..', 'samples')],
     },
+    // ★ 도청 진본 폰트 시각 검증용 proxy (vite dev 한정, build 산출물 무영향).
+    // 컨테이너/로컬에서 페이지를 localhost:7700에 띄워도 /rhwp-alpha/fonts/* 요청이
+    // ai2.jb.go.kr로 reverse-proxy되어 same-origin처럼 동작 → 진본 TTF 적용 확인.
+    proxy: {
+      '/rhwp-alpha': {
+        target: 'https://ai2.jb.go.kr',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [
     // [Task #741 후속] dev 서버 영역 영역 /samples/* 경로 영역 영역 parent samples/ dir 영역
