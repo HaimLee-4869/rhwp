@@ -23,9 +23,12 @@ const CDN_HAMCHOB_B = 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2104@
 const CDN_HAMCHOD_R = 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_four@1.0/HCRDotum.woff';
 
 // 전북AI 서버 진본 TTF (도청 납품 레이어 전용 — 한컴 라이선스, 본가 PR 첨부 금지)
-// ★ same-origin URL: 페이지가 어디에서 뜨든 (ai/ai2.jb.go.kr/staging 등) 자기 도메인에서 폰트
-// fetch → 도청 로그인 쿠키가 자동으로 따라가 진본 폰트 응답 + 한컴 상용 라이선스 보호.
-const JB_ALPHA_EXTRA = '/rhwp-alpha/fonts/extra/';
+// ★ 절대 URL (옵션 A): ai2.jb.go.kr nginx의 /rhwp-alpha/ 라우팅이 미완이라 same-origin(루트 상대)
+// 요청이 SvelteKit SPA index.html 폴백을 받아 OTS 파싱 실패(sfntVersion 0x3C21646F = "<!do").
+// 진본 폰트가 있는 ai.jb.go.kr 를 절대 URL 로 직접 지정한다. ai.jb.go.kr 는 5/29 부로 CORS 설정
+// 완료(Access-Control-Allow-Origin: https://ai2.jb.go.kr — 와일드카드(*) 아닌 specific origin
+// 이라 한컴 상용 라이선스 안전). 진본 TTF 포맷 유지(format truetype).
+const JB_ALPHA_EXTRA = 'https://ai.jb.go.kr/rhwp-alpha/fonts/extra/';
 
 // 한컴 webhwp CSS(@font-face) 매핑 기준 + HWP 문서에서 사용하는 별칭
 const FONT_LIST: FontEntry[] = [
